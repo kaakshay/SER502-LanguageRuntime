@@ -9,7 +9,11 @@ public enum VMCommand {
     BEGIN("BEGIN"),
     PRINT("PRINT"),
     END("END"),
-    CALL("CALL");
+    CALL("CALL"),
+    STMT("STMT"),
+    STMTEND("STMTEND"),
+    OPERATION("OPER");
+    
     private static final Map<String, VMCommand> lookup = new HashMap<String, VMCommand>();
     static {
         for (VMCommand d : VMCommand.values())
