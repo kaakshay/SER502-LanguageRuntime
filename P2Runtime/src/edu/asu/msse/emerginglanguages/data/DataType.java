@@ -6,7 +6,7 @@ import java.util.Map;
 import edu.asu.msse.emerginglanguages.runtime.VMCommand;
 
 public enum DataType {
-	INT("INT"), BOOLEAN("BOOL");
+	NUMBER("NUMBER"), BOOLEAN("BOOL");
     private static final Map<String, DataType> lookup = new HashMap<String, DataType>();
     static {
         for (DataType d : DataType.values())
