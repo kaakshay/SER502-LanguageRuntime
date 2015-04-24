@@ -12,8 +12,9 @@ public enum VMCommand {
     CALL("CALL"),
     STMT("STMT"),
     STMTEND("STMTEND"),
-    OPERATION("OPER");
-    
+    OPERATION("OPER"),
+    IF("IF"), ENDIF("ENDIF"),
+    RETURN("RETURN");
     private static final Map<String, VMCommand> lookup = new HashMap<String, VMCommand>();
     static {
         for (VMCommand d : VMCommand.values())
