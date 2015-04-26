@@ -1,5 +1,8 @@
 package edu.asu.msse.emerginglanguages.runtime;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.LineNumberReader;
 import java.io.StringReader;
@@ -12,31 +15,73 @@ import edu.asu.msse.emerginglanguages.data.Data;
 import edu.asu.msse.emerginglanguages.data.DataType;
 import edu.asu.msse.emerginglanguages.function.Function;
 
+/**
+ * Copyright 2015 Akshay Ashwathanarayana,
+ * <p/>
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * <p/>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p/>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * <p/>
+ *
+ * @author Akshay Ashwathanarayana mailto:Akshay.Ashwathanarayana@asu.edu
+ * @version April 22, 2015
+ */
+
 public class Runtime {
-	private static Scope mainScope;
+	//	private static Scope mainScope;
 
 	private static void execute(String ir, Scope scope){
 		LineNumberReader br = new LineNumberReader(new StringReader(ir));
 		execute(br, scope);
 	}
 
+	private static void execute(File file, Scope scope){
+		LineNumberReader br;
+		try {
+			br = new LineNumberReader(new FileReader(file));
+			execute(br, scope);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+	}
+
+	//	private static void execute(File file, Scope scope){
+	//		LineNumberReader br;
+	//		try {
+	//			br = new LineNumberReader(new FileReader(file));
+	//			execute(br, scope);
+	//		} catch (FileNotFoundException e) {
+	//			// TODO Auto-generated catch block
+	//			e.printStackTrace();
+	//		}
+
 	private static void execute(LineNumberReader reader, Scope scope){
 		String nextLine=null;
 		try {
 			nextLine = reader.readLine();
 
-
+			boolean ifTrue = false;
 			boolean functionReturned = false;
 			while(nextLine != null){
 				if(functionReturned)
 					break;
 				StringTokenizer tokenizer = new StringTokenizer(nextLine, ":");
 				String token = tokenizer.nextToken();
+				//				System.out.println(token);
 				switch(VMCommand.get(token)){
 				case ENDIF:
+				case ENDWHILE:
 					break;
-				case ASSIGN:{
-					System.out.println("in ASSIGN");
+				case VARDECL:{
+					System.out.println("in VARDECL");
 					String name = tokenizer.nextToken();
 					DataType type = DataType.get(tokenizer.nextToken());
 					String value = tokenizer.nextToken();
@@ -45,6 +90,19 @@ public class Runtime {
 
 					Data variable = new Data(value, type);
 					scope.variables.put(name, variable);
+					break;
+				}
+				case ASSIGN:{
+					System.out.println("in ASSIGN");
+					String name = tokenizer.nextToken();
+					//					DataType type = DataType.get(tokenizer.nextToken());
+					String value = tokenizer.nextToken();
+					if(value.equals("POP"))
+						value = scope.stack.pop().value;
+
+					Data data = getVariable(name, scope);
+					if(data != null)
+						data.value = value;
 					break;
 				}
 				case DECL:{
@@ -95,7 +153,7 @@ public class Runtime {
 					if(funcMap != null){
 						func = funcMap.get(funcCallName);
 						if(func != null)
-							executeFunction(func, argumentList, scope);
+							executeFunction(func, argumentList, scope, false);
 					}else{
 						//TODO throw exception
 					}
@@ -160,10 +218,46 @@ public class Runtime {
 						scope.stack.push(new Data((a>b)+"", DataType.BOOLEAN));
 						break;
 					}
+					case ">=":{
+						int b = Integer.parseInt(scope.stack.pop().value);
+						int a = Integer.parseInt(scope.stack.pop().value);
+						scope.stack.push(new Data((a>=b)+"", DataType.BOOLEAN));
+						break;
+					}
 					case "==":{
 						int b = Integer.parseInt(scope.stack.pop().value);
 						int a = Integer.parseInt(scope.stack.pop().value);
 						scope.stack.push(new Data((a==b)+"", DataType.BOOLEAN));
+						break;
+					}
+					case "!=":{
+						int b = Integer.parseInt(scope.stack.pop().value);
+						int a = Integer.parseInt(scope.stack.pop().value);
+						scope.stack.push(new Data((a==b)+"", DataType.BOOLEAN));
+						break;
+					}
+					case "<":{
+						int b = Integer.parseInt(scope.stack.pop().value);
+						int a = Integer.parseInt(scope.stack.pop().value);
+						scope.stack.push(new Data((a<b)+"", DataType.BOOLEAN));
+						break;
+					}
+					case "<=":{
+						int b = Integer.parseInt(scope.stack.pop().value);
+						int a = Integer.parseInt(scope.stack.pop().value);
+						scope.stack.push(new Data((a<=b)+"", DataType.BOOLEAN));
+						break;
+					}
+					case "AND":{
+						boolean b = Boolean.parseBoolean(scope.stack.pop().value);
+						boolean a = Boolean.parseBoolean(scope.stack.pop().value);
+						scope.stack.push(new Data((a&&b)+"", DataType.BOOLEAN));
+						break;
+					}
+					case "OR":{
+						boolean b = Boolean.parseBoolean(scope.stack.pop().value);
+						boolean a = Boolean.parseBoolean(scope.stack.pop().value);
+						scope.stack.push(new Data((a&&b)+"", DataType.BOOLEAN));
 						break;
 					}
 					}
@@ -178,11 +272,23 @@ public class Runtime {
 					if(data.type == DataType.BOOLEAN){
 						if(!Boolean.parseBoolean(data.value)){
 							String ln = reader.readLine();
-							while(ln != null && !ln.equals("ENDIF"))
+							while(ln != null && !(ln.equals("ELSE") ||ln.equals("ENDIF")))
 								ln = reader.readLine();
-						}
+							if(scope.isWhileLoop)
+								scope.parentScope.breakWhileLoop = true;
+						}else
+							ifTrue = true;
 					}else{
 						//TODO throw exception not boolean type
+						System.out.println("TYPE NOT BOOLEAN");
+					}
+					break;
+				}
+				case ELSE:{
+					if(ifTrue){
+						String ln = reader.readLine();
+						while(ln != null && !ln.equals("ENDIF"))
+							ln = reader.readLine();
 					}
 					break;
 				}
@@ -192,8 +298,31 @@ public class Runtime {
 					if(data != null && scope.parentScope != null)
 						scope.parentScope.stack.push(data);
 					functionReturned = true;
+					break;
 				}
+				case WHILE:{
+					System.out.println("in WHILE");
+					StringBuilder whileBody = new StringBuilder();
+					String funcLine=null;
+					funcLine = reader.readLine();
+					while(funcLine!= null && !funcLine.equals("ENDWHILE")){
+						whileBody.append(funcLine);
+						whileBody.append("\n");
+						funcLine = reader.readLine();
+					}
 
+					//				System.out.println(funcBody.toString());
+					Function function = new Function(whileBody.toString(), new ArrayList<String>(), new ArrayList<DataType>());
+					while(true){
+						if(scope.breakWhileLoop)
+							break;
+						else
+							executeFunction(function, new ArrayList<String>(), scope, true);
+					}
+					break;
+				}
+				default:
+					break;
 				}
 
 				nextLine = reader.readLine();
@@ -209,7 +338,7 @@ public class Runtime {
 			scope.stack.push(data);
 
 	}
-	
+
 	public static Data getData(String token, Scope scope){
 		String[] parts = token.split("~");
 		if(!parts[0].equals("POP")){
@@ -223,6 +352,7 @@ public class Runtime {
 					return(data);
 				}else{
 					//TODO Throw exception variable not found
+					System.out.println("Variable not found");
 				}
 			}
 		}else{
@@ -236,7 +366,7 @@ public class Runtime {
 		Data data = null;
 		Scope currentScope =  scope;
 		while(currentScope != null){
-			data = scope.variables.get(variableName);
+			data = currentScope.variables.get(variableName);
 			if(data != null)
 				break;
 			else
@@ -245,46 +375,59 @@ public class Runtime {
 		return data;
 	}
 
-	public static void executeFunction(Function function,ArrayList<String> arguments, Scope parentScope){
+	public static void executeFunction(Function function,ArrayList<String> arguments, Scope parentScope, boolean isWhileLoop){
 		System.out.println("in executeFunction");
 		if(parentScope.stack == null)
 			parentScope.stack = new Stack<>();
-			Scope scope = new Scope(parentScope);
-			if(arguments.size() == function.arguments.size()){
-				for(int i=0 ; i<arguments.size(); i++){
-					Data data = new Data(arguments.get(i), function.argumentsDataTypes.get(i));
-					scope.variables.put(function.arguments.get(i), data);
-				}
+		Scope scope = new Scope(parentScope);
+		if(isWhileLoop)
+			scope.isWhileLoop = true;
+		if(arguments.size() == function.arguments.size()){
+			for(int i=0 ; i<arguments.size(); i++){
+				Data data = new Data(arguments.get(i), function.argumentsDataTypes.get(i));
+				scope.variables.put(function.arguments.get(i), data);
 			}
-			execute(function.body, scope);
+		}
+		execute(function.body, scope);
 	}
 	public static void main(String[] args) {
+		if(args != null){
+			Scope mainScope = new Scope(null);
+			File file = new File(args[0]);
+			execute(file, mainScope);
+		}else{
+			runTests();
+		}
+	}
+
+	public static void runTests(){
+		System.out.println("Running all tests");
 		// ((2+3)-3*1)/2
-		mainScope = new Scope(null);
-		String a= "ASSIGN:a:NUMBER:1\n"+
+		Scope mainScope = new Scope(null);
+		String a= "VARDECL:a:NUMBER:1\n"+
 				"DECL:foo:a~NUMBER\n"+
 				"PRINT:VAR~a\n"+
 				"END\n"+
-				"CALL:foo:a\n"+
+				"CALL:foo:VAR~a\n"+
 				"STMT\n"+
-				"OPER:NUMBER~2:NUMBER~3:+\n"+
-				"OPER:NUMBER~3:NUMBER~1:*\n"+
+				"OPER:NUMBER~5:NUMBER~10:+\n"+
+				"OPER:NUMBER~3:NUMBER~2:*\n"+
 				"OPER:POP:POP:-\n"+
-				"OPER:POP:NUMBER~2:/\n"+
+				"OPER:POP:NUMBER~3:/\n"+
 				"PRINT:POP\n"+
 				"STMTEND";
 
 		/*int fact(int n)
-	    {
-	        int result;
-	       if(n==0 || n==1)
-	         return 1;
+			    {
+			        int result;
+			       if(n==0 || n==1)
+			         return 1;
 
-	       result = fact(n-1) * n;
-	       return result;
-	    }*/
+			       result = fact(n-1) * n;
+			       return result;
+			    }*/
 
-		String actualFact = "DECL:fact:a~NUMBER\n"+
+		String fact = "DECL:fact:a~NUMBER\n"+
 				"STMT\n"+
 				"OPER:VAR~a:NUMBER~1:==\n"+
 				"IF:POP\n"+
@@ -297,25 +440,9 @@ public class Runtime {
 				"OPER:POP:VAR~a:*\n"+
 				"RETURN:POP\n"+
 				"END\n"+
-				"ASSIGN:a:NUMBER:5\n"+
+				"VARDECL:a:NUMBER:5\n"+
 				"CALL:fact:VAR~a\n"+
 				"PRINT:POP";
-				
-		String fact = "DECL:fact:a~NUMBER\n"+
-				"STMT\n"+
-				"OPER:VAR~a:NUMBER~0:>\n"+
-				"IF:POP\n"+
-				"STMTEND\n"+
-				"STMT\n"+
-				"OPER:VAR~a:NUMBER~1:-\n"+
-				"ASSIGN:a:NUMBER:POP\n"+
-				"STMTEND\n"+
-				"PRINT:VAR~a\n"+
-				"CALL:fact:VAR~a\n"+
-				"ENDIF\n"+
-				"END\n"+
-				"ASSIGN:a:NUMBER:1\n"+
-				"CALL:fact:VAR~a";
 
 		String boolStmt = "ASSIGN:a:BOOL:true\n"+
 				"STMT\n"+
@@ -323,17 +450,53 @@ public class Runtime {
 				"STMTEND\n"+
 				"PRINT:VAR~a\n"+
 				"ENDIF";
-		
-		String ifElse = "ASSIGN:a:BOOL:true\n"+
+
+		String ifElse = "VARDECL:a:BOOL:true\n"+
 				"STMT\n"+
 				"IF:VAR~a\n"+
 				"STMTEND\n"+
 				"PRINT:VAR~a\n"+
+				"ELSE\n"+
+				"PRINT:NUMBER~10\n"+
 				"ENDIF";
-		//		execute(a, mainScope);
+
+		String loop = "VARDECL:a:NUMBER:10\n"+
+				"WHILE:\n"+
+				"STMT\n"+
+				"OPER:VAR~a:NUMBER~0:>\n"+
+				"IF:POP\n"+
+				"STMTEND\n"+
+				"PRINT:VAR~a\n"+
+				"STMT\n"+
+				"OPER:VAR~a:NUMBER~1:-\n"+
+				"ASSIGN:a:POP\n"+
+				"STMTEND\n"+
+				"ENDIF\n"+
+				"ENDWHILE";
+
+
+		String returnTest = "DECL:fact\n"+
+				"STMT\n"+
+				"RETURN:NUMBER~5\n"+
+				"END\n"+
+				"VARDECL:a:NUMBER:5\n"+
+				"CALL:fact\n"+
+				"PRINT:POP";
+
+
+		System.out.println("Executing ---------- > a");
+		execute(a, mainScope);
+		System.out.println("Executing ---------- > fact");
 		execute(fact, mainScope);
-//		execute(actualFact, mainScope);
-		//		execute(boolStmt, mainScope);
+		System.out.println("Executing ---------- > return test");
+		execute(returnTest, mainScope);
+		System.out.println("Executing ---------- > loop");
+		execute(loop, mainScope);
+		System.out.println("Executing ---------- > bool stmt");
+		execute(boolStmt, mainScope);
+		System.out.println("Executing ---------- > ifElse");
+		execute(ifElse, mainScope);
+
 	}
 
 }
