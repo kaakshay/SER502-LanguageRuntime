@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Stack;
 import java.util.StringTokenizer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import edu.asu.msse.emerginglanguages.data.Data;
 import edu.asu.msse.emerginglanguages.data.DataType;
@@ -37,7 +39,8 @@ import edu.asu.msse.emerginglanguages.function.Function;
 
 public class Runtime {
 	//	private static Scope mainScope;
-
+	private final static Logger LOG = Logger.getLogger(Runtime.class.getName()); 
+	
 	private static void execute(String ir, Scope scope){
 		LineNumberReader br = new LineNumberReader(new StringReader(ir));
 		execute(br, scope);
@@ -75,13 +78,14 @@ public class Runtime {
 					break;
 				StringTokenizer tokenizer = new StringTokenizer(nextLine, ":");
 				String token = tokenizer.nextToken();
-				//				System.out.println(token);
 				switch(VMCommand.get(token)){
 				case ENDIF:
+					LOG.log(Level.INFO, "in ENDIF");
 				case ENDWHILE:
+					LOG.log(Level.INFO, "in ENDWHILE");
 					break;
 				case VARDECL:{
-					System.out.println("in VARDECL");
+					LOG.log(Level.INFO, "in VARDECL");
 					String name = tokenizer.nextToken();
 					DataType type = DataType.get(tokenizer.nextToken());
 					String value = tokenizer.nextToken();
@@ -93,9 +97,8 @@ public class Runtime {
 					break;
 				}
 				case ASSIGN:{
-					System.out.println("in ASSIGN");
+					LOG.log(Level.INFO, "in ASSIGN");	
 					String name = tokenizer.nextToken();
-					//					DataType type = DataType.get(tokenizer.nextToken());
 					String value = tokenizer.nextToken();
 					if(value.equals("POP"))
 						value = scope.stack.pop().value;
@@ -106,7 +109,7 @@ public class Runtime {
 					break;
 				}
 				case DECL:{
-					System.out.println("in DECL");
+					LOG.log(Level.INFO, "in DECL");
 					String funcName = tokenizer.nextToken();
 
 					ArrayList<String> arguments = new ArrayList<>();
@@ -127,13 +130,12 @@ public class Runtime {
 						funcLine = reader.readLine();
 					}
 
-					//				System.out.println(funcBody.toString());
 					Function function = new Function(funcBody.toString(), arguments, argumentsDataTypes);
 					scope.functions.put(funcName, function);
 					break;
 				}
 				case CALL:{
-					System.out.println("in CALL");
+					LOG.log(Level.INFO, "in CALL");
 					String funcCallName = tokenizer.nextToken();
 
 					ArrayList<String> argumentList = new ArrayList<>();
@@ -155,12 +157,16 @@ public class Runtime {
 						if(func != null)
 							executeFunction(func, argumentList, scope, false);
 					}else{
-						//TODO throw exception
+						LOG.log(Level.SEVERE, "FUNCTION NOT FOUND");
+						StringBuilder sb = new StringBuilder();
+						sb.append("Error at line number "+ reader.getLineNumber());
+						sb.append("Function "+funcCallName +" not found");
+						throw new RuntimeException(sb.toString());
 					}
 					break;
 				}	
 				case PRINT:{
-					System.out.println("in PRINT");
+					LOG.log(Level.INFO, "in PRINT");
 					String nextToken = tokenizer.nextToken();
 					Data data = getData(nextToken, scope);
 					if(data != null)
@@ -168,93 +174,110 @@ public class Runtime {
 					break;
 				}
 				case STMT:{
+					LOG.log(Level.INFO, "in STMT");
 					scope.stack = new Stack<>();
 					break;
 				}
 				case STMTEND:{
+					LOG.log(Level.INFO, "in STMTEND");
 					scope.stack = null;
 					break;
 				}
 				case OPERATION:{
+					LOG.log(Level.INFO, "in OPERATION");
 					String opToken = tokenizer.nextToken();
 					dataforOper(opToken, scope);
 					opToken = tokenizer.nextToken();
 					dataforOper(opToken, scope);
 					opToken = tokenizer.nextToken();
-					switch(opToken){
-					case "+":{
+					Operator op = Operator.get(opToken);
+					switch(op){
+					case ADD:{
+						LOG.log(Level.INFO, "in OPER +");
 						int b = Integer.parseInt(scope.stack.pop().value);
 						int a = Integer.parseInt(scope.stack.pop().value);
 						scope.stack.push(new Data((a+b)+"", DataType.NUMBER));
 						break;
 					}
-					case "-":{
+					case SUBTRACT:{
+						LOG.log(Level.INFO, "in OPER -");
 						int b = Integer.parseInt(scope.stack.pop().value);
 						int a = Integer.parseInt(scope.stack.pop().value);
 						scope.stack.push(new Data((a-b)+"", DataType.NUMBER));
 						break;
 					}
-					case "*":{
+					case MULTIPLY:{
+						LOG.log(Level.INFO, "in OPER *");
 						int b = Integer.parseInt(scope.stack.pop().value);
 						int a = Integer.parseInt(scope.stack.pop().value);
 						scope.stack.push(new Data((a*b)+"", DataType.NUMBER));
 						break;
 					}
-					case "/":{
+					case DIVIDE:{
+						LOG.log(Level.INFO, "in OPER /");
 						int b = Integer.parseInt(scope.stack.pop().value);
 						int a = Integer.parseInt(scope.stack.pop().value);
 						scope.stack.push(new Data((a/b)+"", DataType.NUMBER));
 						break;
 					}
-					case "%":{
+					case MOD:{
+						LOG.log(Level.INFO, "in OPER %");
 						int b = Integer.parseInt(scope.stack.pop().value);
 						int a = Integer.parseInt(scope.stack.pop().value);
 						scope.stack.push(new Data((a%b)+"", DataType.NUMBER));
 						break;
 					}
-					case ">":{
+					case GT:{
+						LOG.log(Level.INFO, "in OPER >");
 						int b = Integer.parseInt(scope.stack.pop().value);
 						int a = Integer.parseInt(scope.stack.pop().value);
 						scope.stack.push(new Data((a>b)+"", DataType.BOOLEAN));
 						break;
 					}
-					case ">=":{
+					case GTE:{
+						LOG.log(Level.INFO, "in OPER >=");
 						int b = Integer.parseInt(scope.stack.pop().value);
 						int a = Integer.parseInt(scope.stack.pop().value);
 						scope.stack.push(new Data((a>=b)+"", DataType.BOOLEAN));
 						break;
 					}
-					case "==":{
+					case EQUALS:{
+						LOG.log(Level.INFO, "in OPER ==");
 						int b = Integer.parseInt(scope.stack.pop().value);
 						int a = Integer.parseInt(scope.stack.pop().value);
 						scope.stack.push(new Data((a==b)+"", DataType.BOOLEAN));
 						break;
 					}
-					case "!=":{
+					case NOTEQUALS:{
+						LOG.log(Level.INFO, "in OPER !=");
 						int b = Integer.parseInt(scope.stack.pop().value);
 						int a = Integer.parseInt(scope.stack.pop().value);
 						scope.stack.push(new Data((a==b)+"", DataType.BOOLEAN));
 						break;
 					}
-					case "<":{
+					case LT:{
+						LOG.log(Level.INFO, "in OPER <");
 						int b = Integer.parseInt(scope.stack.pop().value);
 						int a = Integer.parseInt(scope.stack.pop().value);
 						scope.stack.push(new Data((a<b)+"", DataType.BOOLEAN));
 						break;
 					}
-					case "<=":{
+					case LTE:{
+						LOG.log(Level.INFO, "in OPER <=");
 						int b = Integer.parseInt(scope.stack.pop().value);
 						int a = Integer.parseInt(scope.stack.pop().value);
 						scope.stack.push(new Data((a<=b)+"", DataType.BOOLEAN));
 						break;
 					}
-					case "AND":{
+					case AND:{
+						LOG.log(Level.INFO, "in OPER AND");
 						boolean b = Boolean.parseBoolean(scope.stack.pop().value);
 						boolean a = Boolean.parseBoolean(scope.stack.pop().value);
 						scope.stack.push(new Data((a&&b)+"", DataType.BOOLEAN));
 						break;
 					}
-					case "OR":{
+					case OR:{
+						LOG.log(Level.INFO, "in OPER OR");
 						boolean b = Boolean.parseBoolean(scope.stack.pop().value);
 						boolean a = Boolean.parseBoolean(scope.stack.pop().value);
 						scope.stack.push(new Data((a&&b)+"", DataType.BOOLEAN));
@@ -266,7 +289,6 @@ public class Runtime {
 				}
 				case IF:{
 					String ifToken = tokenizer.nextToken();
-					//						scope.stack = new Stack<>();
 					dataforOper(ifToken, scope);
 					Data data = scope.stack.pop();
 					if(data.type == DataType.BOOLEAN){
@@ -279,8 +301,11 @@ public class Runtime {
 						}else
 							ifTrue = true;
 					}else{
-						//TODO throw exception not boolean type
-						System.out.println("TYPE NOT BOOLEAN");
+						LOG.log(Level.SEVERE, "TYPE NOT BOOLEAN");
+						StringBuilder sb = new StringBuilder();
+						sb.append("Error at line number "+ reader.getLineNumber());
+						sb.append(" Statement does not evaluate to a boolean");
+						throw new RuntimeException(sb.toString());
 					}
 					break;
 				}
@@ -311,7 +336,6 @@ public class Runtime {
 						funcLine = reader.readLine();
 					}
 
-					//				System.out.println(funcBody.toString());
 					Function function = new Function(whileBody.toString(), new ArrayList<String>(), new ArrayList<DataType>());
 					while(true){
 						if(scope.breakWhileLoop)
@@ -351,8 +375,11 @@ public class Runtime {
 				if(data != null){
 					return(data);
 				}else{
-					//TODO Throw exception variable not found
-					System.out.println("Variable not found");
+					LOG.log(Level.SEVERE, "Variable not found");
+					StringBuilder sb = new StringBuilder();
+					sb.append("Variable "+parts[1] +" not found");
+					sb.append("Make sure you have declared the variable");
+					throw new RuntimeException(sb.toString());
 				}
 			}
 		}else{
@@ -376,7 +403,7 @@ public class Runtime {
 	}
 
 	public static void executeFunction(Function function,ArrayList<String> arguments, Scope parentScope, boolean isWhileLoop){
-		System.out.println("in executeFunction");
+		LOG.log(Level.INFO, "in executeFunction");
 		if(parentScope.stack == null)
 			parentScope.stack = new Stack<>();
 		Scope scope = new Scope(parentScope);
@@ -391,7 +418,7 @@ public class Runtime {
 		execute(function.body, scope);
 	}
 	public static void main(String[] args) {
-		if(args != null){
+		if(args.length != 0){
 			Scope mainScope = new Scope(null);
 			File file = new File(args[0]);
 			execute(file, mainScope);
@@ -444,7 +471,7 @@ public class Runtime {
 				"CALL:fact:VAR~a\n"+
 				"PRINT:POP";
 
-		String boolStmt = "ASSIGN:a:BOOL:true\n"+
+		String boolStmt = "VARDECL:a:BOOL:true\n"+
 				"STMT\n"+
 				"IF:VAR~a\n"+
 				"STMTEND\n"+
@@ -485,16 +512,22 @@ public class Runtime {
 
 
 		System.out.println("Executing ---------- > a");
+		mainScope = new Scope(null);
 		execute(a, mainScope);
 		System.out.println("Executing ---------- > fact");
+		mainScope = new Scope(null);
 		execute(fact, mainScope);
 		System.out.println("Executing ---------- > return test");
+		mainScope = new Scope(null);
 		execute(returnTest, mainScope);
 		System.out.println("Executing ---------- > loop");
+		mainScope = new Scope(null);
 		execute(loop, mainScope);
 		System.out.println("Executing ---------- > bool stmt");
+		mainScope = new Scope(null);
 		execute(boolStmt, mainScope);
 		System.out.println("Executing ---------- > ifElse");
+		mainScope = new Scope(null);
 		execute(ifElse, mainScope);
 
 	}

@@ -1,4 +1,4 @@
-ASSIGN:a:BOOL:true
+VARDECL:a:BOOL:true
 STMT
 IF:VAR~a
 STMTEND

@@ -1,0 +1,9 @@
+I have generated a .jar file for the runtime.
+I have also placed a few intermediate code samples in SampleIC folder.
+
+To run the jar, navigate to this directory and then run this command from the terminal
+
+java -jar BlahRuntime.jar SampleIR/boolean.blah
+
+Replace boolean.blah with your file name and SampleIR with directory of your choice.
+Not giving a file name will run all my test cases in the SampleIR directory.
